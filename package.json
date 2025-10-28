@@ -4,8 +4,153 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
-  },
+  },// Simple car avoider game
+document.addEventListener('DOMContentLoaded', () => {
+  const gameArea = document.getElementById('gameArea');
+  const player = document.getElementById('player');
+  const scoreEl = document.getElementById('score');
+  const startBtn = document.getElementById('startBtn');
+  const leftBtn = document.getElementById('leftBtn');
+  const rightBtn = document.getElementById('rightBtn');
+
+  const areaW = gameArea.clientWidth;
+  const carW = player.clientWidth;
+
+  let gameLoopId = null;
+  let speed = 4;
+  let score = 0;
+  let moving = { left: false, right: false };
+  let enemies = [];
+
+  // Place player in the center bottom
+  function resetPlayer() {
+    player.style.left = (areaW / 2 - carW / 2) + 'px';
+  }
+
+  // Create a new enemy
+  function spawnEnemy() {
+    const e = document.createElement('div');
+    e.classList.add('enemy');
+    // possible x positions fit inside the road
+    const maxX = areaW - e.clientWidth;
+    const x = Math.floor(Math.random() * (maxX + 1));
+    e.style.left = x + 'px';
+    e.style.top = '-120px';
+    gameArea.appendChild(e);
+    enemies.push(e);
+  }
+
+  // Check collision - simple AABB
+  function isCollide(a, b) {
+    const ar = a.getBoundingClientRect();
+    const br = b.getBoundingClientRect();
+    return !(
+      ar.top > br.bottom ||
+      ar.bottom < br.top ||
+      ar.right < br.left ||
+      ar.left > br.right
+    );
+  }
+
+  function update() {
+    // Move player based on keys
+    const curX = parseFloat(getComputedStyle(player).left);
+    if (moving.left) {
+      player.style.left = Math.max(0, curX - 8) + 'px';
+    } else if (moving.right) {
+      player.style.left = Math.min(areaW - carW, curX + 8) + 'px';
+    }
+
+    // Move enemies down
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      const top = parseFloat(getComputedStyle(e).top) + speed;
+      e.style.top = top + 'px';
+
+      // if off screen, remove and increment score
+      if (top > gameArea.clientHeight + 50) {
+        e.remove();
+        enemies.splice(i, 1);
+        score++;
+        scoreEl.textContent = score;
+        // slowly increase difficulty
+        if (score % 5 === 0) speed += 0.5;
+      } else {
+        // check collision
+        if (isCollide(player, e)) {
+          endGame();
+          return;
+        }
+      }
+    }
+
+    // occasionally spawn a new enemy
+    if (Math.random() < 0.02 + Math.min(0.03, score * 0.002)) {
+      spawnEnemy();
+    }
+
+    gameLoopId = requestAnimationFrame(update);
+  }
+
+  function startGame() {
+    cancelAnimationFrame(gameLoopId);
+    // reset
+    enemies.forEach(e => e.remove());
+    enemies = [];
+    speed = 4;
+    score = 0;
+    scoreEl.textContent = score;
+    resetPlayer();
+    // spawn a couple to start
+    spawnEnemy();
+    spawnEnemy();
+    gameLoopId = requestAnimationFrame(update);
+  }
+
+  function endGame() {
+    cancelAnimationFrame(gameLoopId);
+    alert(`Game over! Score: ${score}`);
+  }
+
+  // Keyboard handlers
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'Left') {
+      e.preventDefault();
+      moving.left = true;
+    } else if (e.key === 'ArrowRight' || e.key === 'Right') {
+      e.preventDefault();
+      moving.right = true;
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'Left') {
+      moving.left = false;
+    } else if (e.key === 'ArrowRight' || e.key === 'Right') {
+      moving.right = false;
+    }
+  });
+
+  // Touch controls
+  leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moving.left = true; });
+  leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); moving.left = false; });
+  rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moving.right = true; });
+  rightBtn.addEventListener('touchend', (e) => { e.preventDefault(); moving.right = false; });
+
+  // Also allow mouse clicks on touch controls
+  leftBtn.addEventListener('mousedown', () => moving.left = true);
+  leftBtn.addEventListener('mouseup', () => moving.left = false);
+  rightBtn.addEventListener('mousedown', () => moving.right = true);
+  rightBtn.addEventListener('mouseup', () => moving.right = false);
+
+  startBtn.addEventListener('click', startGame);
+
+  // initialize
+  resetPlayer();
+});
+
   "dependencies": {
     "express": "^4.18.2"
   }
 }
+
